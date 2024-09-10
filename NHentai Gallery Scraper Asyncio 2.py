@@ -115,7 +115,9 @@ async def download_multiple_galleries(start_id, end_id, downloadDir):
 start_time = time.time()
 
 # Run the event loop for all galleries
-total_pages_downloaded = asyncio.run(download_multiple_galleries(529190, 529199, downloadDirectory))
+#total_pages_downloaded = asyncio.run(download_multiple_galleries(529190, 529199, downloadDirectory))
+id = int(input("Please enter your NHentai gallery ID: "))
+total_pages_downloaded = asyncio.run(download_multiple_galleries(id, id, downloadDirectory))
 
 # Calculate the total time taken
 end_time = time.time()

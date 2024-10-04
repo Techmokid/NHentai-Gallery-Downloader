@@ -14,6 +14,8 @@ WORKER_COUNT = 8 * CPU_Core_Count
 
 # Retry count for failed downloads
 retries = 10
+rate_limit_retries = 5  # Number of times to retry on rate limit
+rate_limit_wait = 10  # Fixed wait time for rate limit in seconds
 
 # Async function to download an image
 semaphore = asyncio.Semaphore(10)  # Limit concurrent downloads to 10
@@ -32,10 +34,14 @@ async def download_image(session, image_url, folder):
                         with open(image_path, 'wb') as img_file:
                             img_file.write(await response.read())
                         return 1  # Return 1 to indicate success
+                    elif response.status == 429:
+                        print(f"Rate limit exceeded for {image_url}. Waiting {rate_limit_wait} seconds before retrying...")
+                        await asyncio.sleep(rate_limit_wait)  # Wait before retrying
                     else:
                         print(f"Failed to download image from {image_url}. Status code: {response.status}")
             except asyncio.TimeoutError:
                 print(f"Timeout on attempt {attempt + 1} for {image_url}")
+        
         return 0  # Return 0 if all attempts failed
 
 
@@ -80,8 +86,8 @@ def zip_folder(folder_path):
 
 # Main function to download the full gallery
 async def download_full_gallery(galleryID, downloadDir, englishOnly):
-    print(f"Starting download of NHentai gallery {galleryID}")
-    correctedGalleryID = str("0" * (6 - len(str(galleryID)))) + str(galleryID)
+    print(f"Checking NHentai gallery {galleryID}")
+    correctedGalleryID = str(galleryID)
     baseGalleryURL = 'https://nhentai.net/g/' + correctedGalleryID + '/'
 
     if englishOnly and not await checkEnglish(baseGalleryURL):
@@ -89,7 +95,8 @@ async def download_full_gallery(galleryID, downloadDir, englishOnly):
     
     downloadPath = os.path.join(downloadDir, str(galleryID))
     if os.path.exists(downloadPath + ".zip"):
-        print(f"Gallery ID {galleryID} is already zipped")
+        print(f"Gallery ID {galleryID} - Already zipped")
+        print()
         return 0
     
     async with aiohttp.ClientSession() as session:
@@ -106,7 +113,7 @@ async def download_full_gallery(galleryID, downloadDir, englishOnly):
                 if not os.path.exists(image_path):
                     filtered_image_urls.append(image_url)
                 else:
-                    print(f"File already exists: {image_name}, skipping.")
+                    print(f"Gallery ID {galleryID} - File already exists: {image_name}, skipping.")
         
         # Count number of successfully downloaded pages
         download_count = 0
@@ -114,11 +121,13 @@ async def download_full_gallery(galleryID, downloadDir, englishOnly):
         results = await asyncio.gather(*tasks)
         download_count += sum(results)  # Sum the successful downloads
     
-    print("Zipping up gallery...")
+    print(f"Gallery ID {galleryID} - Zipping up gallery...")
     zip_folder(downloadPath)
-    shutil.rmtree(downloadPath)
+    if os.path.exists(downloadPath):
+        shutil.rmtree(downloadPath)
     
-    print(f"Finished download of NHentai gallery {galleryID}. Total images downloaded: {download_count}")
+    print(f"Gallery ID {galleryID} - Finished download of NHentai gallery {galleryID}. Total images downloaded: {download_count}")
+    print()
     return download_count  # Return the count of pages/images downloaded
 
 
@@ -126,9 +135,8 @@ async def download_full_gallery(galleryID, downloadDir, englishOnly):
 async def download_multiple_galleries(start_id, end_id, downloadDir, englishOnly=True):
     total_pages_downloaded = 0
     for i in range(start_id, end_id + 1):
-        downloaded_pages = await download_full_gallery(i, downloadDir,englishOnly)
+        downloaded_pages = await download_full_gallery(i, downloadDir, englishOnly)
         total_pages_downloaded += downloaded_pages
-        print()
     return total_pages_downloaded
 
 async def fetch(url):
@@ -172,22 +180,21 @@ async def checkEnglish(url):
                 if links:
                     for link in links:
                         href = str(link['href'])
-                        print(href)  # Print the href of each link
                         # Check if "english" is in the href
                         if "english" in href.lower():  # Use lower() to ensure case insensitivity
                             print("Found english comic")
                             return True  # Return True if "english" is found
                     # Only return False here if no links contained "english"
-                    print("No 'english' tag found in any links.")
+                    #print("No 'english' tag found in any links.")
                     return False  
                 else:
-                    print("No tags found under the Languages div.")
+                    #print("No tags found under the Languages div.")
                     return False
             else:
-                print("No Languages container found.")
+                #print("No Languages container found.")
                 return False
         else:
-            print("Specified section not found.")
+            #print("Specified section not found.")
             return False
     
     except Exception as e:
@@ -211,6 +218,6 @@ print(f"Total pages downloaded: {total_pages_downloaded}")
 if total_pages_downloaded > 0:
     timePerPage = total_time / total_pages_downloaded
     print(f"Time taken per page:     {timePerPage:.2f} seconds")
-    cTTDE_Seconds = 16619421*timePerPage
+    cTTDE_Seconds = 16619421 * timePerPage
     cTTDE_Days = cTTDE_Seconds / 86400
     print(f"Calculated time to download all of NHentai is {cTTDE_Days} days")

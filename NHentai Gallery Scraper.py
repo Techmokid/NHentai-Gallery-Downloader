@@ -122,9 +122,9 @@ async def download_full_gallery(galleryID, downloadDir, englishOnly):
         download_count += sum(results)  # Sum the successful downloads
     
     print(f"Gallery ID {galleryID} - Zipping up gallery...")
-    zip_folder(downloadPath)
-    if os.path.exists(downloadPath):
-        shutil.rmtree(downloadPath)
+    #zip_folder(downloadPath)
+    #if os.path.exists(downloadPath):
+    #    shutil.rmtree(downloadPath)
     
     print(f"Gallery ID {galleryID} - Finished download of NHentai gallery {galleryID}. Total images downloaded: {download_count}")
     print()
@@ -206,6 +206,7 @@ start_time = time.time()
 
 # Run the event loop for all galleries
 total_pages_downloaded = asyncio.run(download_multiple_galleries(0, 999999, downloadDirectory))
+#total_pages_downloaded = asyncio.run(download_multiple_galleries(514900, 515000, downloadDirectory))
 
 # Calculate the total time taken
 end_time = time.time()
